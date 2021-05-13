@@ -24,7 +24,7 @@ fark_archive_url = "https://www.fark.com/archives/"
 comments_url_prefix = "https://www.fark.com/comments/"
 new_forum_count = 0  # keep track of how many new ones created
 new_image_count = 0
-days_back = 1           # how many days to go back
+days_back = 7           # how many days to go back
 today = str(datetime.date(datetime.now()))
 
 
