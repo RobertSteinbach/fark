@@ -2,8 +2,6 @@
 
 # https://www.youtube.com/watch?v=IEEhzQoKtQU&t=373s   (check out threading for enhancement)
 
-
-
 # pip install beautifulsoup4
 # pip install requests
 # pip install pyodbc
@@ -26,7 +24,9 @@ fark_archive_url = "https://www.fark.com/archives/"
 comments_url_prefix = "https://www.fark.com/comments/"
 new_forum_count = 0  # keep track of how many new ones created
 new_image_count = 0
-days_back = 7           # how many days to go back
+days_back = 1           # how many days to go back
+today = str(datetime.date(datetime.now()))
+
 
 # SQL Server connection
 #cnSQL = pyodbc.connect(
@@ -88,13 +88,15 @@ def persist_forums(url):                   # build a list of forums from the pas
             foo = "link NOT found to remove"
             #print(foo, link)
 
+    new_forum_count = 0       # reset counter for new forums
     for link in links:
         # see if it exists
         sql = "select count('ForumId') from Forums where ForumURL='" + str(link) + "';"
         cursorSQL.execute(sql)
         if cursorSQL.fetchone()[0] == 0:   #if the count is zero, then add it to the database
             # print("Adding link to DB", link)
-            sql = "insert into Forums (ForumURL) VALUES ('" + link + "');"
+            sql = "insert into Forums (ForumURL, ForumDate) VALUES ('" + link + "', '" + today + "');"
+            print(sql)
             cursorSQL.execute(sql)
             dbcon.commit()
             new_forum_count += 1
@@ -102,7 +104,7 @@ def persist_forums(url):                   # build a list of forums from the pas
             foo = "Link already exists in DB"
             # print(foo, link)
 
-    print("forums added to DB")
+    print(new_forum_count, "forums added to DB")
 
     return
 
@@ -127,7 +129,8 @@ def persist_images():
         forum_id = forum[0]
         forum_url = forum[1]
         forum_name = forum_url[forum_url.rfind("/")+1:]
-        print("...", forum_name)
+        new_image_count = 0                         # reset the count of new images found
+        #print("...", forum_name)
         response = requests.get(forum_url)
         soup = BeautifulSoup(response.text, "html.parser")
 
@@ -151,7 +154,7 @@ def persist_images():
             sql = "select count(ImageId) from Images where ImageURL='" + image_url + "';"
             cursorSQL.execute(sql)
             if cursorSQL.fetchone()[0] == 0:  # if the count is zero, then add it to the database
-                sql = "insert into Images (ImageURL) VALUES ('" + image_url + "');"
+                sql = "insert into Images (ImageURL, ImageDate) VALUES ('" + image_url + "','" + today + "');"
                 cursorSQL.execute(sql)
                 dbcon.commit()
                 new_image_count += 1
@@ -167,9 +170,15 @@ def persist_images():
                   + " AND ImageId=" + str(image_id) + ";"
             cursorSQL.execute(sql)
             if cursorSQL.fetchone()[0] == 0:  # if the count is zero, then add it to the database
-                sql = "insert into ForumImages (ForumId, ImageId) VALUES (" + str(forum_id) + "," + str(image_id) + ");"
+                sql = "insert into ForumImages (ForumId, ImageId, ForumImageDate) VALUES (" + str(forum_id) + "," \
+                      + str(image_id) + ",'" + today + "');"
                 cursorSQL.execute(sql)
                 dbcon.commit()
+
+        ##### END FOR
+
+        print("...[", new_image_count, "]", forum_name)
+
 
     # quit()
     return
@@ -209,26 +218,30 @@ def looper():
 
     while True:
 
+        print('Begin loop at...', datetime.now())
+        today = str(datetime.date(datetime.now()))                      # refresh, will run over multiple days
+
+
         download_images()    # Go download up to 1000 images (from a previous run)
 
         persist_forums(fark_url)    # build the list of forums off the main page
 
-        persist_images()    # scan through recent forums and persist pictures to later download
+        persist_images()    # scan through recent forums and log pictures to later download
 
         download_images()    # Go download up to 1000 images
 
-
-        #break   # just one time
+        #break   # just one loop
 
         # sleep for a while
-        print('sleeping....')
-        time.sleep(3600)
+        print('End loop.  Sleeping....')
+        time.sleep(3600)                #3600 = 1 hour
 
     return
 
 ##############################
 # Main
 ###############################
+
 
 
 looper()            #go into the infite loop
